@@ -1,0 +1,27 @@
+{
+  "name": "github-copilot-openai-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OpenAI-compatible API on top of GitHub Copilot (copilot-sdk) with session continuation, prompt caching, tools, vision, reasoning and cost reporting",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "test": "node --test --test-timeout=300000 acceptance.test.mjs && node multi-session.test.mjs",
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "keywords": [
+    "github-copilot",
+    "copilot-sdk",
+    "openai",
+    "bridge",
+    "hermes-agent"
+  ],
+  "author": "paq85",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@github/copilot-sdk": "^1.0.34"
+  }
+}

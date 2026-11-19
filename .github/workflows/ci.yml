@@ -1,0 +1,16 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    # Acceptance tests need a signed-in Copilot account, so CI only verifies install + syntax.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node --check server.mjs && node --check acceptance.test.mjs && node --check multi-session.test.mjs
