@@ -295,6 +295,10 @@ async function createEntry({ model, backendModel = model, system, opts, effort, 
         t.nano_aiu += d.copilotUsage?.totalNanoAiu ?? 0;
         t.cost_multiplier += d.cost ?? 0;
       }
+      // Copilot's content filter blocked (or cut short) the reply. The runtime then supplies a
+      // synthetic assistant message ("The model returned no content because the response was
+      // blocked by content filtering."), which must not reach the client as an ordinary answer.
+      if (entry.cur && (d.contentFilterTriggered || d.finishReason === "content_filter")) entry.cur.content_filter = true;
     }
   });
   // SessionConfig does not serialize fusionTier; switch through the runtime RPC
@@ -571,7 +575,11 @@ async function chat(req, res) {
     if (outcome.type === "error") throw outcome.error;
     if (aborted) return;
 
-    const finishReason = outcome.type === "tool_calls" ? "tool_calls" : "stop";
+    // A filtered turn is reported the OpenAI way (finish_reason "content_filter") so clients treat
+    // it as a refusal: not stored as the model's answer, and not retried as an empty reply. The
+    // explanation stays in `content`.
+    const filtered = outcome.type !== "tool_calls" && !!entry.cur.content_filter;
+    const finishReason = outcome.type === "tool_calls" ? "tool_calls" : filtered ? "content_filter" : "stop";
     const content = outcome.type === "final" ? outcome.content : sentText;
     // Some Fusion-routed turns provide only the final message, with no deltas.
     if (stream && !sentText && content) {
@@ -597,7 +605,7 @@ async function chat(req, res) {
     const ms = Date.now() - started;
     const x_copilot = {
       session_id: entry.session.sessionId, session_reused: reused, messages_sent: toSend.length,
-      model: entry.actualModel ?? model, duration_ms: ms,
+      model: entry.actualModel ?? model, duration_ms: ms, ...(filtered && { content_filter: true }),
       request: totalsOut(cur), session: totalsOut(entry.totals), context: contextOut(entry.context),
     };
 
@@ -626,6 +634,12 @@ async function chat(req, res) {
       ctx ? `| ctx ${n(ctx.currentTokens)}/${n(ctx.tokenLimit)} (${Math.round((ctx.currentTokens / ctx.tokenLimit) * 100)}%)` : "",
       `| session: ${entry.totals.requests} req, ${aiu(entry.totals.nano_aiu / 1e9)} AIU`,
     );
+    if (filtered) {
+      // The Copilot session now holds the synthetic message, which the client won't keep, so the
+      // session can't be continued: drop it instead of leaving it to the idle timeout.
+      log(red("  blocked by Copilot's content filter;"), `dropping session ${sid}`);
+      dropEntry(entry);
+    }
   } catch (e) {
     // A failed turn leaves the session in an unknown state; drop it.
     dropEntry(entry);

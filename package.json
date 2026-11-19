@@ -1,6 +1,6 @@
 {
   "name": "github-copilot-openai-bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "OpenAI-compatible API on top of GitHub Copilot (copilot-sdk) with session continuation, prompt caching, tools, vision, reasoning and cost reporting",
   "type": "module",

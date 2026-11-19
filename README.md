@@ -283,6 +283,17 @@ model's billing multiplier. Non-streaming responses also set the
 | GET    | `/v1/sessions`      | All live sessions with cumulative usage + context |
 | GET    | `/v1/sessions/{id}` | One session                                    |
 
+## Content filtering
+
+When Copilot's content filter blocks a reply, the response has `finish_reason: "content_filter"`
+(and `"content_filter": true` in `x_copilot`), the way OpenAI reports it. `content` holds
+Copilot's explanation ("The model returned no content because the response was blocked by
+content filtering."), not a model answer, so clients can show it as a refusal instead of storing
+it or retrying it as an empty reply. The filter result is deterministic for the same
+conversation: sending the same history again is usually blocked again (and billed again), so
+change the conversation or use another provider instead. The bridge drops the Copilot session
+after a blocked reply.
+
 ## Console logs
 
 The server logs one line per request and one per response (colored on a TTY;
